@@ -168,6 +168,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # Поле ввода для коллеги
+# Поле ввода для коллеги
 if prompt := st.chat_input("Напишите боту..."):
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -176,12 +177,11 @@ if prompt := st.chat_input("Напишите боту..."):
     # Отправляем сообщение в API
     try:
         response = st.session_state.chat.send_message(prompt)
+        # Вывод ответа пишем СТРОГО внутри блока try
         with st.chat_message("assistant"):
             st.markdown(response.text)
         st.session_state.messages.append({"role": "assistant", "content": response.text})
+        
     except Exception as e:
-        st.error(f"Произошла ошибка API: {e}")
-    
-    with st.chat_message("assistant"):
-        st.markdown(response.text)
-    st.session_state.messages.append({"role": "assistant", "content": response.text})
+        with st.chat_message("assistant"):
+            st.error(f"Произошла ошибка API: {e}")
