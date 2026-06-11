@@ -175,10 +175,10 @@ if prompt := st.chat_input("Напишите боту..."):
 
     # Отправляем сообщение в API
     try:
-    response = st.session_state.chat.send_message(prompt)
-    with st.chat_message("assistant"):
-        st.markdown(response.text)
-    st.session_state.messages.append({"role": "assistant", "content": response.text})
+        response = st.session_state.chat.send_message(prompt)
+        with st.chat_message("assistant"):
+            st.markdown(response.text)
+        st.session_state.messages.append({"role": "assistant", "content": response.text})
     except Exception as e:
         st.error(f"Произошла ошибка API: {e}")
     
