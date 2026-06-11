@@ -5,9 +5,6 @@ from google.genai import types
 
 st.title("Тестирование Чат-бота 🤖")
 
-# Инициализируем клиента (API ключ можно зашить или вынести в секреты)
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-
 # Настройки вашего бота из AI Studio (скопируйте сюда свои)
 SYSTEM_INSTRUCTION = """# РОЛЬ И КОНТЕКСТ
 Ты — профессиональный ассистент образовательного агентства Excourse. Твоя цель — провести интерактивное анкетирование студента, определить его индивидуальный кейс и сформировать финальный, точный чек-лист документов для получения студенческой визы типа D в Италию.
@@ -149,15 +146,21 @@ SYSTEM_INSTRUCTION = """# РОЛЬ И КОНТЕКСТ
 
 MODEL_NAME = "gemini-1.5-flash" 
 
-# Инициализируем историю чата в сессии пользователя
+# Инициализируем и клиент, и чат внутри session_state, чтобы они не теряли связь
+if "client" not in st.session_state:
+    st.session_state.client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    # Создаем объект чата Google
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM_INSTRUCTION,
-        temperature=0.7, # ваша температура
+        temperature=0.7,  # Можете поставить свою температуру из AI Studio
     )
-    st.session_state.chat = client.chats.create(model=MODEL_NAME, config=config)
+    # Используем клиент из session_state
+    st.session_state.chat = st.session_state.client.chats.create(
+        model=MODEL_NAME, 
+        config=config
+    )
 
 # Отображаем историю
 for message in st.session_state.messages:
