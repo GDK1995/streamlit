@@ -1,7 +1,6 @@
 import streamlit as st
 import os
-from google import genai
-from google.genai import types
+from groq import Groq
 
 st.title("Тестирование Чат-бота 🤖")
 
@@ -254,133 +253,47 @@ SYSTEM_INSTRUCTION = """# РОЛЬ И КОНТЕКСТ
 ### 📣 ПРИЗЫВ К ДЕЙСТВИЮ (В самом конце сообщения)
 **Пожалуйста, выделите и скопируйте этот список документов целиком (вместе с заголовком, именем {ФИО_студента}, адресами ВЦ и специальными блоками предупреждений, если они сформировались) и отправьте его вашему куратору Excourse в мессенджер (WhatsApp/Telegram). Это позволит куратору сразу взять вашу ситуацию в работу без лишних уточнений!**"""
 
-MODEL_NAME = "gemini-2.5-flash" 
-
-# Инициализируем клиент внутри session_state
 if "client" not in st.session_state:
-    st.session_state.client = genai.Client(
-        api_key=os.environ["GEMINI_API_KEY"]
-    )
+    st.session_state.client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    # Инициализация истории с системным промптом
+    st.session_state.messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
 
-# Автоматический старт бота (первое приветствие и Вопрос 0)
-if not st.session_state.messages:
+# Автоматическое приветствие
+if len(st.session_state.messages) == 1:
     try:
-        config = types.GenerateContentConfig(
-            system_instruction=SYSTEM_INSTRUCTION,
-            temperature=0.3,
+        response = st.session_state.client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": "Начни диалог и задай вопрос 0"}],
         )
-        response = st.session_state.client.models.generate_content(
-            model=MODEL_NAME, contents="Начни диалог и задай вопрос 0", config=config
-        )
-        st.session_state.messages.append(
-            {"role": "assistant", "content": response.text}
-        )
+        msg = response.choices[0].message.content
+        st.session_state.messages.append({"role": "assistant", "content": msg})
     except Exception as e:
-        st.error(f"Ошибка инициализации API: {e}")
+        st.error(f"Ошибка: {e}")
 
-# Отображаем историю переписки в UI
+# Отображение чата
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    if message["role"] != "system":
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-# --- ЛОГИКА ОПРЕДЕЛЕНИЯ НЕОБХОДИМОСТИ ЗАГРУЗКИ ФАЙЛА ---
-show_uploader = False
-last_assistant_text = ""
-
-# Проверяем последнее сообщение от бота
-if st.session_state.messages:
-    for msg in reversed(st.session_state.messages):
-        if msg["role"] == "assistant":
-            last_assistant_text = msg["content"].lower()
-            break
-
-# Триггер-слова, при которых активируется виджет загрузки
-trigger_words = [
-    "прикрепите",
-    "скан",
-    "фото",
-    "загрузите",
-    "свидетельство о рождении",
-    "сор",
-]
-if any(word in last_assistant_text for word in trigger_words):
-    # Дополнительно проверяем, не отправил ли пользователь уже текст/файл после этого вопроса
-    if st.session_state.messages[-1]["role"] == "assistant":
-        show_uploader = True
-
-# Выводим загрузчик файлов, если триггер сработал
-uploaded_file_parts = []
-if show_uploader:
-    st.info("👇 Бот ожидает документ. Вы можете прикрепить его ниже:")
-    uploaded_file = st.file_uploader(
-        label="Прикрепите фото/скан документа (СОР, выписки и т.д.)",
-        type=["png", "jpg", "jpeg", "pdf"],
-        key="dynamic_uploader",
-    )
-    if uploaded_file:
-        st.success(f"Файл '{uploaded_file.name}' успешно подготовлен!")
-        # Конвертируем файл в формат, понятный новому Google GenAI SDK
-        file_bytes = uploaded_file.read()
-        uploaded_file_parts = [
-            types.Part.from_bytes(
-                data=file_bytes, mime_type=uploaded_file.type
-            )
-        ]
-
-# Поле ввода текста для пользователя
-if prompt := st.chat_input("Напишите ваш ответ боту..."):
-    # Отображаем текст пользователя в чате
+# Обработка ввода пользователя
+if prompt := st.chat_input("Напишите ваш ответ..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Сохраняем текстовый ответ в историю
-    st.session_state.messages.append({"role": "user", "content": prompt})
-
-    # Пересобираем всю историю сообщений для API
-    formatted_contents = []
-    for msg in st.session_state.messages:
-        api_role = "model" if msg["role"] == "assistant" else "user"
-        formatted_contents.append(
-            types.Content(
-                role=api_role,
-                parts=[types.Part.from_text(text=msg["content"])],
+    # Запрос к Groq
+    with st.chat_message("assistant"):
+        try:
+            stream = st.session_state.client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=st.session_state.messages,
+                temperature=0.3,
             )
-        )
-
-    # Важнейший момент: Если файл был загружен на этом шаге,
-    # внедряем его структуру в самый последний контент пользователя
-    if uploaded_file_parts:
-        # Добавляем байты файла в последний элемент истории, отправляемый в API
-        formatted_contents[-1].parts.extend(uploaded_file_parts)
-        # Опционально: делаем пометку в истории сообщений, что файл был передан
-        st.session_state.messages[-1]["content"] += (
-            f"\n\n*(📎 К сообщению прикреплен файл: {st.session_state.dynamic_uploader.name})*"
-        )
-
-    # Запрос к API Google Gemini
-    try:
-        config = types.GenerateContentConfig(
-            system_instruction=SYSTEM_INSTRUCTION,
-            temperature=0.3,  # Понижаем температуру для точного следования сценарию
-        )
-
-        response = st.session_state.client.models.generate_content(
-            model=MODEL_NAME, contents=formatted_contents, config=config
-        )
-
-        # Выводим ответ модели и сохраняем его
-        with st.chat_message("assistant"):
-            st.markdown(response.text)
-        st.session_state.messages.append(
-            {"role": "assistant", "content": response.text}
-        )
-
-        # Вызываем моментальную перезагрузку страницы, чтобы скрыть/показать uploader на новом шаге
-        st.rerun()
-
-    except Exception as e:
-        with st.chat_message("assistant"):
-            st.error(f"Произошла ошибка API: {e}")
+            response_text = stream.choices[0].message.content
+            st.markdown(response_text)
+            st.session_state.messages.append({"role": "assistant", "content": response_text})
+        except Exception as e:
+            st.error(f"Ошибка API: {e}")
