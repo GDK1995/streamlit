@@ -266,7 +266,7 @@ if "messages" not in st.session_state:
 if len(st.session_state.messages) == 1:
     try:
         response = st.session_state.client.chat.completions.create(
-            model="openai/gpt-oss-120b",
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": "Начни диалог и задай вопрос 0"}],
         )
         msg = response.choices[0].message.content
@@ -290,7 +290,7 @@ if prompt := st.chat_input("Напишите ваш ответ..."):
     with st.chat_message("assistant"):
         try:
             stream = st.session_state.client.chat.completions.create(
-                model="openai/gpt-oss-120b",
+                model="llama-3.3-70b-versatile",
                 messages=st.session_state.messages,
                 temperature=0.3,
             )
