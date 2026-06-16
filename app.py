@@ -253,8 +253,6 @@ SYSTEM_INSTRUCTION = """# РОЛЬ И КОНТЕКСТ
 ### 📣 ПРИЗЫВ К ДЕЙСТВИЮ (В самом конце сообщения)
 **Пожалуйста, выделите и скопируйте этот список документов целиком (вместе с заголовком, именем {ФИО_студента}, адресами ВЦ и специальными блоками предупреждений, если они сформировались) и отправьте его вашему куратору Excourse в мессенджер (WhatsApp/Telegram). Это позволит куратору сразу взять вашу ситуацию в работу без лишних уточнений!**"""
 
-MODEL_NAME = "gemini-3.5-flash" 
-
 if "client" not in st.session_state:
     st.session_state.client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
@@ -298,4 +296,9 @@ if prompt := st.chat_input("Напишите ваш ответ..."):
             st.markdown(response_text)
             st.session_state.messages.append({"role": "assistant", "content": response_text})
         except Exception as e:
-            st.error(f"Ошибка API: {e}")
+            # Превращаем ошибку в строку, чтобы найти код 429
+            error_str = str(e)
+            if "429" in error_str:
+                st.error("Мы превысили лимит запросов на сервере. Пожалуйста, подождите 30 секунд и попробуйте отправить сообщение снова.")
+            else:
+                st.error(f"Произошла ошибка при обращении к API: {e}")
