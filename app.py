@@ -264,7 +264,7 @@ if "messages" not in st.session_state:
 if len(st.session_state.messages) == 1:
     try:
         response = st.session_state.client.chat.completions.create(
-            model="meta-llama/llama-prompt-guard-2-22m",
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
             messages=[{"role": "user", "content": "Начни диалог и задай вопрос 0"}],
         )
         msg = response.choices[0].message.content
@@ -288,7 +288,7 @@ if prompt := st.chat_input("Напишите ваш ответ..."):
     with st.chat_message("assistant"):
         try:
             stream = st.session_state.client.chat.completions.create(
-                model="meta-llama/llama-prompt-guard-2-22m",
+                model="meta-llama/llama-4-scout-17b-16e-instruct",
                 messages=st.session_state.messages,
                 temperature=0.3,
             )
