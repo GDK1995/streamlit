@@ -336,12 +336,7 @@ if st.session_state.messages:
             break
 
 # Триггер-слова, при которых активируется виджет загрузки
-trigger_words = [
-    "прикрепите",
-    "скан",
-    "фото",
-    "загрузите",
-]
+trigger_words = []
 if any(word in last_assistant_text for word in trigger_words):
     # Дополнительно проверяем, не отправил ли пользователь уже текст/файл после этого вопроса
     if st.session_state.messages[-1]["role"] == "assistant":
